@@ -13,6 +13,7 @@ Originally each app repo (`Apercu`, `x`, `BotWhy`) declared its own copy of the 
 | Apercu | `apercu` | `mysql:3306` |
 | x | `twitter_db` | `mysql:3306` |
 | BotWhy | `chatbox_db` | `mysql:3306` |
+| PopRoom | `poproom` | `mysql:3306` |
 
 To add a new app: create its database and grant access manually (`CREATE DATABASE ...; GRANT ALL ON ....* TO 'user'@'%';`), then point its backend's connection string at `mysql:3306/<its db name>`. Don't add another `mysql.yaml` to the new app's own repo.
 
