@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mysql-backup
+  namespace: default
+spec:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: mysql-backup
+              image: mysql:8
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -e
+                  BACKUP_DIR=/backup/mysql
+                  TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+                  FILE="$BACKUP_DIR/mysql-backup-$TIMESTAMP.sql.gz"
+                  mkdir -p "$BACKUP_DIR"
+                  echo "Starting backup at $TIMESTAMP..."
+                  mysqldump -h mysql -u root -p"$MYSQL_ROOT_PASSWORD" --all-databases --single-transaction --routines --triggers | gzip > "$FILE"
+                  echo "Backup saved: $FILE ($(du -sh $FILE | cut -f1))"
+                  find "$BACKUP_DIR" -name "mysql-backup-*.sql.gz" -mtime +7 -delete
+                  echo "Current backups:"
+                  ls -lh "$BACKUP_DIR"
+              env:
+                - name: MYSQL_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: mysql-secret
+                      key: MYSQL_ROOT_PASSWORD
+              volumeMounts:
+                - mountPath: /backup
+                  name: truenas-backup
+          volumes:
+            - name: truenas-backup
+              nfs:
+                server: 192.168.3.67
+                path: /mnt/main/backups/k3s
