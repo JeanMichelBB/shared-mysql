@@ -1,0 +1,44 @@
+# Default-deny ingress for the whole `default` namespace (5 apps + mysql + hub share it).
+# Egress is intentionally left open -- restricting it would also require allow-listing every
+# external SaaS call these apps make (Stripe, OpenAI, Google OAuth, Resend, Docker Hub, the
+# Tailscale mesh for homelab-backend), which is a separate, much larger project.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: default
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+# Only the 4 backends that actually use the shared MySQL instance may reach it. PopRoom's
+# frontend/hub have no DB access at all, so they're correctly excluded.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backends-to-mysql
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: mysql
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: apercu-backend
+        - podSelector:
+            matchLabels:
+              app: botwhy-backend
+        - podSelector:
+            matchLabels:
+              app: poproom-backend
+        - podSelector:
+            matchLabels:
+              app: x-backend
+      ports:
+        - protocol: TCP
+          port: 3306
